@@ -81,6 +81,22 @@ def test_cli_markdown_output(tmp_dataset, tmp_path, capsys):
     assert "| Check | Severity | Messages |" in text
 
 
+def test_cli_full_video_audit_json(tmp_path, capsys):
+    from tests.conftest import create_consolidated_v3_dataset
+
+    root = create_consolidated_v3_dataset(tmp_path / "dataset")
+    try:
+        main([str(root), "--checks", "videos", "--video-audit", "full", "--json"])
+    except SystemExit as exc:
+        # Depending on codec initialization, the synthetic frames can be
+        # classified as blank (FAIL) or ordinary content (PASS).
+        assert exc.code == 1
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert payload["checks"][0]["details"]["mode"] == "full"
+    assert payload["checks"][0]["details"]["video_count"] == 1
+
+
 def test_cli_ci_fail_on_fail(tmp_dataset, capsys):
     """Default --fail-on=fail should exit 0 for WARN."""
     main([str(tmp_dataset), "--ci", "--fail-on=fail"])

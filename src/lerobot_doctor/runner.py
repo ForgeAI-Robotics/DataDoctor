@@ -54,6 +54,9 @@ class CheckResult:
     name: str
     severity: Severity  # Overall severity (worst of all messages)
     messages: list[CheckMessage] = field(default_factory=list)
+    # Optional machine-readable output from checks (for example, per-video
+    # metrics from the full video audit).
+    details: dict = field(default_factory=dict)
 
     def pass_(self, msg: str):
         self.messages.append(CheckMessage(Severity.PASS, msg))
@@ -99,6 +102,7 @@ def run_checks(
     dataset: LoadedDataset,
     checks: list[str] | None = None,
     verbose: bool = False,
+    video_audit_options=None,
 ) -> DiagnosticReport:
     """Run selected checks on a loaded dataset."""
     report = DiagnosticReport(dataset_path=dataset.display_path or str(dataset.root))
@@ -121,7 +125,10 @@ def run_checks(
             report.results.append(result)
             continue
         check_fn = all_checks[name]
-        result = check_fn(dataset)
+        if name == "videos":
+            result = check_fn(dataset, options=video_audit_options)
+        else:
+            result = check_fn(dataset)
         report.results.append(result)
 
     return report

@@ -32,6 +32,13 @@ def main(argv: list[str] | None = None):
     check_p.add_argument("--ci", action="store_true")
     check_p.add_argument("--fail-on", choices=["warn", "fail"], default="fail")
     check_p.add_argument("--markdown", type=str, default=None, metavar="PATH")
+    check_p.add_argument(
+        "--video-audit", choices=["quick", "full"], default="quick",
+        help="Video inspection depth: quick probes up to 20 files; full decodes every frame",
+    )
+    check_p.add_argument("--video-pixel-stride", type=int, default=4, metavar="N")
+    check_p.add_argument("--video-freeze-mad", type=float, default=0.5, metavar="VALUE")
+    check_p.add_argument("--video-moving-state-delta", type=float, default=1e-4, metavar="VALUE")
 
     # === FIX ===
     fix_p = subparsers.add_parser("fix", help="Auto-fix common dataset issues")
@@ -112,6 +119,7 @@ def _load_dataset_or_exit(path: str, max_episodes: int | None = None):
 def _run_check(args):
     from lerobot_doctor.runner import run_checks
     from lerobot_doctor.report import print_report, report_to_json, report_to_markdown
+    from lerobot_doctor.checks.videos import VideoAuditOptions
 
     check_names = [c.strip() for c in args.checks.split(",")] if args.checks else None
     dataset = _load_dataset_or_exit(args.dataset, max_episodes=args.max_episodes)
@@ -119,7 +127,20 @@ def _run_check(args):
         from pathlib import Path
         dataset.robot_urdf = Path(args.urdf)
 
-    report = run_checks(dataset, checks=check_names, verbose=args.verbose)
+    def video_progress(done: int, total: int) -> None:
+        print(f"Video audit: {done}/{total} files decoded", file=sys.stderr, flush=True)
+
+    video_options = VideoAuditOptions(
+        mode=args.video_audit,
+        pixel_stride=max(1, args.video_pixel_stride),
+        freeze_mad=args.video_freeze_mad,
+        moving_state_delta=args.video_moving_state_delta,
+        progress=video_progress if args.video_audit == "full" else None,
+    )
+    report = run_checks(
+        dataset, checks=check_names, verbose=args.verbose,
+        video_audit_options=video_options,
+    )
 
     if args.ci:
         print(report_to_json(report))

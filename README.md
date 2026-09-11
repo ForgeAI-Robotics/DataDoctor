@@ -37,6 +37,12 @@ lerobot-doctor lerobot/pusht
 # Run specific checks only
 lerobot-doctor /path/to/dataset --checks metadata,temporal,actions
 
+# Fully decode every video and localize freezes/content/PTS issues to frame/time ranges
+lerobot-doctor /path/to/dataset --checks videos --video-audit full --json > video-audit.json
+
+# Include full per-video findings in the normal Markdown report
+lerobot-doctor /path/to/dataset --checks videos --video-audit full --markdown video-audit.md
+
 # JSON output (for CI/CD integration)
 lerobot-doctor /path/to/dataset --json
 
@@ -63,7 +69,7 @@ lerobot-doctor /path/to/dataset --ci --fail-on=warn
 | **metadata** | Missing/invalid info.json, wrong episode/frame counts, missing data files, tasks.parquet issues |
 | **temporal** | Non-monotonic timestamps, dropped frames, inconsistent fps, broken frame/episode indices |
 | **actions** | NaN/Inf values, clipped actions, frozen (stuck) actions, sudden action jumps |
-| **videos** | Missing video files, decode errors, fps/resolution mismatches, frame count mismatches |
+| **videos** | Missing files, decode errors, fps/resolution/frame-count mismatches; optional full-frame audit for PTS gaps, black/white or low-contrast frames, relative blur, repeated frames, and video freezes while robot state changes |
 | **statistics** | NaN/Inf in observations, zero-variance features, extreme outliers, stats.json drift |
 | **episodes** | Short/empty episodes, length distribution, policy window compatibility (ACT/Diffusion), metadata-data length mismatches, task imbalance |
 | **consistency** | Cross-episode feature schema changes (missing columns, dtype/shape mismatches), within-episode shape inconsistencies |

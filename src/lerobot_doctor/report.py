@@ -247,6 +247,68 @@ def report_to_markdown(report: DiagnosticReport) -> str:
         lines.append(f"| {r.name} | **{r.severity.value}** | {cell} |")
     lines.append("")
 
+    video_result = next((r for r in report.results if r.name == "Video Integrity"), None)
+    if video_result and video_result.details.get("mode") == "full":
+        details = video_result.details
+        verdicts = details["verdict_counts"]
+        lines.extend([
+            "## Full video audit",
+            "",
+            "Every frame was decoded. Content metrics use spatially sampled grayscale frames; the source dataset was not modified.",
+            "",
+            f"- **Videos:** {details['video_count']}",
+            f"- **Decoded/expected frames:** {details['decoded_frames']:,}/{details['expected_frames']:,}",
+            f"- **KEEP:** {verdicts.get('KEEP', 0)}",
+            f"- **REVIEW:** {verdicts.get('REVIEW', 0)}",
+            f"- **DROP_CANDIDATE:** {verdicts.get('DROP_CANDIDATE', 0)}",
+            f"- **Localized anomaly intervals:** {details.get('localized_interval_count', 0)}",
+            "",
+            "### Videos requiring attention",
+            "",
+            "| Episodes | Camera | Verdict | Decoded/expected | FPS | Longest duplicate | State-moving freeze | Reasons |",
+            "| --- | --- | --- | ---: | ---: | ---: | ---: | --- |",
+        ])
+        findings = [video for video in details["videos"] if video["verdict"] != "KEEP"]
+        if findings:
+            for video in findings:
+                episodes = ", ".join(str(value) for value in video["episode_indices"])
+                reasons = "; ".join(video["reasons"]).replace("|", "\\|")
+                fps = "N/A" if video["fps"] is None else f"{video['fps']:.3f}"
+                lines.append(
+                    f"| {episodes} | `{video['camera']}` | {video['verdict']} | "
+                    f"{video['decoded_frames']}/{video['expected_frames']} | {fps} | "
+                    f"{video['longest_duplicate_run']} | {video['longest_moving_freeze_run']} | {reasons} |"
+                )
+        else:
+            lines.append("| - | - | - | - | - | - | - | No findings |")
+        lines.append("")
+
+        intervals = [
+            (video, interval)
+            for video in findings
+            for interval in video.get("anomaly_intervals", [])
+        ]
+        lines.extend([
+            "### Localized anomaly intervals",
+            "",
+            "Times are relative to the start of each physical video. Frame indices are inclusive.",
+            "",
+            "| Episodes | Camera | Type | Start frame | End frame | Start time | End time | Duration |",
+            "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |",
+        ])
+        if intervals:
+            for video, interval in intervals:
+                episodes = ", ".join(str(value) for value in video["episode_indices"])
+                lines.append(
+                    f"| {episodes} | `{video['camera']}` | `{interval['kind']}` | "
+                    f"{interval['start_frame']} | {interval['end_frame']} | "
+                    f"{interval['start_time_s']:.3f}s | {interval['end_time_s']:.3f}s | "
+                    f"{interval['duration_s']:.3f}s |"
+                )
+        else:
+            lines.append("| - | - | - | - | - | - | - | No localized intervals |")
+        lines.append("")
+
     fixes = _get_fix_suggestions(report)
     if fixes:
         lines.append("## Suggested fixes")
@@ -283,6 +345,7 @@ def report_to_json(report: DiagnosticReport) -> str:
                     {"severity": m.severity.value, "message": m.message}
                     for m in r.messages
                 ],
+                **({"details": r.details} if r.details else {}),
             }
             for r in report.results
         ],

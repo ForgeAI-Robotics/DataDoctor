@@ -144,7 +144,11 @@ def write_minimal_mp4(path: Path, n_frames: int, fps: int = 10, width: int = 64,
         stream.height = height
         stream.pix_fmt = "yuv420p"
         for i in range(n_frames):
-            frame = av.VideoFrame(width, height, "yuv420p")
+            # Initialize pixels explicitly. A bare VideoFrame may expose
+            # allocator contents, making content-audit tests nondeterministic.
+            frame = av.VideoFrame.from_ndarray(
+                np.zeros((height, width, 3), dtype=np.uint8), format="rgb24"
+            )
             frame.pts = i
             for packet in stream.encode(frame):
                 container.mux(packet)
