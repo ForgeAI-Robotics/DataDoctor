@@ -1,25 +1,37 @@
-# lerobot-doctor
+# DataDoctor
 
-Dataset quality diagnostics for [LeRobot](https://github.com/huggingface/lerobot) v2/v3 datasets.
+DataDoctor is ForgeAI Robotics' dataset quality inspection toolkit for
+[LeRobot](https://github.com/huggingface/lerobot) v2/v3 datasets.
 
-Catches issues that waste debugging time: corrupted timestamps, dropped frames, frozen actions, clipped values, metadata inconsistencies, video problems, stuck actuators, and more.
+It catches issues that waste training and debugging time: corrupted timestamps,
+missing or malformed actions/states, metadata inconsistencies, invalid statistics,
+video corruption, suspicious freezes, low-quality frames, stuck actuators, and more.
 
-Works on local datasets and HuggingFace Hub datasets. No dependency on the lerobot package.
+The ForgeAI extension adds a native full-video audit that decodes every frame,
+cross-checks visual motion against robot state, and localizes suspicious intervals
+to exact frame and video-relative time ranges in JSON and Markdown reports.
 
-**Live now** on the [LeRobot Dataset Visualizer](https://huggingface.co/spaces/lerobot/visualize_dataset) as the "Doctor" tab, and as a standalone [HF Space](https://huggingface.co/spaces/jashshah999/lerobot-doctor).
+DataDoctor works with local datasets and Hugging Face Hub datasets and does not
+depend on the `lerobot` Python package. It is based on the upstream
+[`lerobot-doctor`](https://github.com/jashshah999/lerobot-doctor) project.
 
-## Install
+## Installation
 
 ```bash
-pip install lerobot-doctor
+git clone https://github.com/ForgeAI-Robotics/DataDoctor.git
+cd DataDoctor
+
+# Keep the environment and dependencies on the current data disk/repository.
+uv venv environment
+uv pip install --python environment/bin/python -e ".[dev]"
+source environment/bin/activate
 ```
 
-Or from source:
+The distribution and command names remain `lerobot-doctor` for compatibility
+with the upstream project:
 
 ```bash
-git clone https://github.com/ForgeAI-Robotics/DataEngine.git
-cd lerobot-doctor
-pip install .
+lerobot-doctor --version
 ```
 
 ## Usage
@@ -177,8 +189,8 @@ lerobot-doctor /path/to/dataset --json | jq '.overall_severity'
 
 For very large datasets (e.g. `lerobot/droid_1.0.1` at ~28M frames across 156 data parquets + videos), always pass `--max-episodes N` with a small N (10-100). Running without it attempts a full download, which:
 
-- On the hosted [HF Space](https://huggingface.co/spaces/jashshah999/lerobot-doctor): **will fail** -- the Space has ~50GB ephemeral disk. The Space also blocks "all episodes" on datasets with >1M frames.
-- Locally: works if you have the bandwidth and disk, but is slow.
+- Locally: works if you have the bandwidth and disk, but can be slow and consume substantial storage.
+- Full video auditing is intentionally opt-in through `--video-audit full`; the default quick mode only probes a sample.
 
 When `--max-episodes` is set on a HF dataset, lerobot-doctor:
 
@@ -239,8 +251,16 @@ lerobot-doctor merge-check ./merged_dataset --post-merge # post-merge validation
 ## Development
 
 ```bash
-git clone https://github.com/jashshah999/lerobot-doctor.git
-cd lerobot-doctor
-pip install -e ".[dev]"
-PYTHONPATH=src pytest tests/ -v
+git clone https://github.com/ForgeAI-Robotics/DataDoctor.git
+cd DataDoctor
+uv venv environment
+uv pip install --python environment/bin/python -e ".[dev]"
+environment/bin/python -m pytest tests -v
 ```
+
+## Upstream
+
+DataDoctor preserves the history and CLI compatibility of
+[`jashshah999/lerobot-doctor`](https://github.com/jashshah999/lerobot-doctor).
+Upstream changes can be synchronized from the `upstream` Git remote, while
+ForgeAI-specific development is published to this repository.
