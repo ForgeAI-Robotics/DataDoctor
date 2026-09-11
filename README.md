@@ -17,7 +17,7 @@ pip install lerobot-doctor
 Or from source:
 
 ```bash
-git clone https://github.com/jashshah999/lerobot-doctor.git
+git clone https://github.com/ForgeAI-Robotics/DataEngine.git
 cd lerobot-doctor
 pip install .
 ```
